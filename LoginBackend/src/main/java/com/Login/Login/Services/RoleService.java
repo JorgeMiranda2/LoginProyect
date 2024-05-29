@@ -28,4 +28,7 @@ public class RoleService {
     public List<String> getAllRoleNames() {
         return getAllRoles().stream().map(Role::getRoleName).collect(Collectors.toList());
     }
+    public Optional<Role> getRoleById(Long id) {
+        return roleRepository.findById(id);
+    }
 }
