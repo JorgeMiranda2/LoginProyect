@@ -1,6 +1,7 @@
 package com.Login.Login.Controllers;
 
 
+import com.Login.Login.Dtos.AccessResponseDto;
 import com.Login.Login.Dtos.AccountDto;
 import com.Login.Login.Dtos.LoginDto;
 import com.Login.Login.Models.Person;
@@ -9,6 +10,9 @@ import com.Login.Login.Repositories.IPerson;
 import com.Login.Login.Repositories.IRole;
 import com.Login.Login.Repositories.IUser;
 import com.Login.Login.Security.JwtAuthenticationProvider;
+import com.Login.Login.Security.SecurityConstants;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 
 import com.Login.Login.Services.UserService;
 
@@ -26,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -51,6 +56,7 @@ public class AuthController {
     @Autowired
     private JwtAuthenticationProvider jwtAuthenticationProvider;
 
+    private static long cookieTime = SecurityConstants.JWT_EXPIRATION_TOKEN;
 
     @PostMapping("/createaccount")
     public ResponseEntity<String> createAccount(@RequestBody AccountDto accountDto) {
@@ -90,14 +96,49 @@ public class AuthController {
         }
     }
     @PostMapping("/login")
-    public ResponseEntity<String> signIn(@RequestBody LoginDto loginDto) {
+    public ResponseEntity<AccessResponseDto> signIn(@RequestBody LoginDto loginDto, HttpServletResponse response) {
+
 
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                 loginDto.getIdentifier(), loginDto.getPassword()
         ));
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String token = jwtAuthenticationProvider.createToken(authentication);
-        return ResponseEntity.status(HttpStatus.OK).body(token);
+
+        String username = null;
+
+        try {
+            User user = userRepository.findByUsername(loginDto.getIdentifier()).orElseThrow();
+            username = user.getUsername();
+            // Crear la cookie para el token
+            ResponseCookie tokenCookie = ResponseCookie.from("token", token)
+                    .httpOnly(true)
+                    .secure(true) // Asegúrate de usar HTTPS en producción
+                    .path("/")
+                    .maxAge(cookieTime) // Duración de la cookie: 7 días
+                    .sameSite("Strict")
+                    .build();
+
+            // Crear la cookie para el nombre de usuario
+            ResponseCookie usernameCookie = ResponseCookie.from("username", username)
+                    .path("/")
+                    .maxAge(cookieTime)
+                    .sameSite("Strict")
+                    .build();
+
+
+
+            // Añadir las cookies a la respuesta
+            response.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
+            response.addHeader(HttpHeaders.SET_COOKIE, usernameCookie.toString());
+
+
+        } catch (Exception e) {
+            System.out.println("identifier not found: " + e);
+        }
+
+        return ResponseEntity.status(HttpStatus.OK).body(AccessResponseDto.builder().token(token).username(username).build());
+
 
         /*
         try {
@@ -117,6 +158,8 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Error creating account: " + e.getMessage());
         }
         */
+
+
     }
 
 }

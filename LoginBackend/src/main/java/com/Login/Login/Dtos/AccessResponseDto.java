@@ -9,6 +9,5 @@ import lombok.Setter;
 @Builder
 public class AccessResponseDto {
     private String token;
-    private String tokenType = "Bearer ";
     private String username;
 }
