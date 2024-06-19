@@ -41,6 +41,8 @@ public class WebSecurityConfig {
             "http://172.16.77.34:19006",
             "http://172.16.77.34",
             "http://localhost:3000",
+            "http://loginfront:3000",
+            "http://loginfront:80",
     };
 
     @Bean
